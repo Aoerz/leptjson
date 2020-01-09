@@ -1,6 +1,5 @@
 #include "leptjson.h"
 #include <assert.h>
-#include <stdio.h>
 #include <stdlib.h>
 
 #define EXPECT(c, ch)                                                          \
@@ -22,45 +21,38 @@ static void lept_parse_whitespace(lept_context *c) {
   c->json = p;
 }
 
-// null == "null"
-static int lept_parse_null(lept_context *c, lept_value *v) {
-  EXPECT(c, 'n');
-  if (c->json[0] != 'u' || c->json[1] != 'l' || c->json[2] != 'l')
-    return LEPT_PARSE_INVALID_VALUE;
-  c->json += 3;
-  v->type = LEPT_NULL;
-  return LEPT_PARSE_OK;
-}
-
-// true == "true"
-static int lept_parse_true(lept_context *c, lept_value *v) {
-  EXPECT(c, 't');
-  if (c->json[0] != 'r' || c->json[1] != 'u' || c->json[2] != 'e')
-    return LEPT_PARSE_INVALID_VALUE;
-  c->json += 3;
-  v->type = LEPT_TRUE;
-  return LEPT_PARSE_OK;
-}
-
-// fase == "false"
-static int lept_parse_false(lept_context *c, lept_value *v) {
-  EXPECT(c, 'f');
-  if (c->json[0] != 'a' || c->json[1] != 'l' || c->json[2] != 's' ||
-      c->json[3] != 'e')
-    return LEPT_PARSE_INVALID_VALUE;
-  c->json += 4;
-  v->type = LEPT_FALSE;
+// parse true/false/null
+static int lept_parse_literal(lept_context *c, lept_value *v, char *str,
+                              lept_type t) {
+  if (c->json[0] == 't') {
+    EXPECT(c, 't');
+    if (c->json[0] != 'r' || c->json[1] != 'u' || c->json[2] != 'e')
+      return LEPT_PARSE_INVALID_VALUE;
+    c->json += 3;
+  } else if (c->json[0] == 'f') {
+    EXPECT(c, 'f');
+    if (c->json[0] != 'a' || c->json[1] != 'l' || c->json[2] != 's' ||
+        c->json[3] != 'e')
+      return LEPT_PARSE_INVALID_VALUE;
+    c->json += 4;
+  } else if (c->json[0] == 'n') {
+    EXPECT(c, 'n');
+    if (c->json[0] != 'u' || c->json[1] != 'l' || c->json[2] != 'l')
+      return LEPT_PARSE_INVALID_VALUE;
+    c->json += 3;
+  }
+  v->type = t;
   return LEPT_PARSE_OK;
 }
 
 static int lept_parse_value(lept_context *c, lept_value *v) {
   switch (*c->json) {
   case 't':
-    return lept_parse_true(c, v);
+    return lept_parse_literal(c, v, "true", LEPT_TRUE);
   case 'f':
-    return lept_parse_false(c, v);
+    return lept_parse_literal(c, v, "false", LEPT_FALSE);
   case 'n':
-    return lept_parse_null(c, v);
+    return lept_parse_literal(c, v, "null", LEPT_NULL);
   case '\0':
     return LEPT_PARSE_EXPECT_VALUE;
   default:
