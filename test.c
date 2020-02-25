@@ -65,6 +65,24 @@ static int test_pass = 0;
 
 #define ISDIGIT1TO9(ch) ((ch) >= '1' && (ch) <= '9')
 
+#define TEST_ARRAY(json, size)                                                 \
+  do {                                                                         \
+    lept_value v;                                                              \
+    lept_init(&v);                                                             \
+    EXPECT_EQ_INT(LEPT_PARSE_OK, lept_parse(&v, json));                        \
+    EXPECT_EQ_INT(LEPT_ARRAY, lept_get_type(&v));                              \
+    EXPECT_EQ_SIZE_T(size, lept_get_array_size(&v));                           \
+    lept_free(&v);                                                             \
+  } while (0)
+
+#if defined(_MSC_VER)
+#define EXPECT_EQ_SIZE_T(expect, actual)                                       \
+  EXPECT_EQ_BASE((expect) == (actual), (size_t)expect, (size_t)actual, "%Iu")
+#else
+#define EXPECT_EQ_SIZE_T(expect, actual)                                       \
+  EXPECT_EQ_BASE((expect) == (actual), (size_t)expect, (size_t)actual, "%zu")
+#endif
+
 static void test_parse_null() {
   lept_value v;
   v.type = LEPT_TRUE;
@@ -104,6 +122,12 @@ static void test_parse_invalid_value() {
   TEST_ERROR(LEPT_PARSE_INVALID_VALUE, "inf");
   TEST_ERROR(LEPT_PARSE_INVALID_VALUE, "NAN");
   TEST_ERROR(LEPT_PARSE_INVALID_VALUE, "nan");
+
+  /* invalid value in array */
+#if 1
+  TEST_ERROR(LEPT_PARSE_INVALID_VALUE, "[1,]");
+  TEST_ERROR(LEPT_PARSE_INVALID_VALUE, "[\"a\", nul]");
+#endif
 }
 
 static void test_parse_root_not_singular() {
@@ -182,6 +206,12 @@ static void test_parse_invalid_string_char() {
   TEST_ERROR(LEPT_PARSE_INVALID_STRING_CHAR, "\"\x1F\"");
 }
 
+static void test_parse_array() {
+  TEST_ARRAY("[ ]", 0);
+  TEST_ARRAY("[ null , false , true , 123 , \" abc \" ]", 5);
+  TEST_ARRAY("[ [ ] , [ 0 ] , [ 0 , 1 ] , [ 0 , 1 , 2 ] ]", 4);
+}
+
 static void test_access_null() {
   lept_value v;
   lept_init(&v);
@@ -244,6 +274,15 @@ static void test_parse_invalid_unicode_surrogate() {
   TEST_ERROR(LEPT_PARSE_INVALID_UNICODE_SURROGATE, "\"\\uD800\\uE000\"");
 }
 
+static void test_parse_miss_comma_or_square_bracket() {
+#if 1
+  TEST_ERROR(LEPT_PARSE_MISS_COMMA_OR_SQUARE_BRACKET, "[1");
+  TEST_ERROR(LEPT_PARSE_MISS_COMMA_OR_SQUARE_BRACKET, "[1}");
+  TEST_ERROR(LEPT_PARSE_MISS_COMMA_OR_SQUARE_BRACKET, "[1 2");
+  TEST_ERROR(LEPT_PARSE_MISS_COMMA_OR_SQUARE_BRACKET, "[[]");
+#endif
+}
+
 static void test_parse() {
   test_parse_null();
   test_parse_false();
@@ -259,6 +298,8 @@ static void test_parse() {
   test_parse_invalid_string_char();
   test_parse_invalid_unicode_hex();
   test_parse_invalid_unicode_surrogate();
+  test_parse_array();
+  test_parse_miss_comma_or_square_bracket();
 }
 
 static void test_access() {
